@@ -13,6 +13,10 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL   = 'gemini-2.5-flash';   // Free tier model
 const GEMINI_URL     = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
+app.get("/", (req, res) => {
+    res.sendFile(__dirname + "/public/chatbot.html");
+});
+
 // ── System prompt ─────────────────────────────────────────
 const SYSTEM_INSTRUCTION = `You are Technotreon AI, the official virtual assistant of Technotreon Private Limited.
 
