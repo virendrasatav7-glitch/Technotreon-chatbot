@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Technotreon AI Assistant</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand-dark: #0C2B5E;
+      --brand-mid: #1A4A9A;
+      --brand-light: #7EB8FF;
+      --brand-accent: #4AE38A;
+      --bg-primary: #ffffff;
+      --bg-secondary: #f5f6f8;
+      --bg-tertiary: #eef0f4;
+      --text-primary: #111827;
+      --text-secondary: #6b7280;
+      --text-tertiary: #9ca3af;
+      --border-light: rgba(0,0,0,0.10);
+      --border-mid: rgba(0,0,0,0.18);
+      --radius-md: 8px;
+      --radius-lg: 14px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #1a1d23;
+        --bg-secondary: #22262f;
+        --bg-tertiary: #2a2f3a;
+        --text-primary: #f3f4f6;
+        --text-secondary: #9ca3af;
+        --text-tertiary: #6b7280;
+        --border-light: rgba(255,255,255,0.08);
+        --border-mid: rgba(255,255,255,0.14);
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-tertiary);
+      min-height: 100vh;
+    }
+
+    /* ── Floating launcher ── */
+    #chat-launcher {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      width: 58px; height: 58px;
+      background: var(--brand-dark);
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 20px rgba(12,43,94,0.45);
+      z-index: 9999;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    #chat-launcher:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(12,43,94,0.55); }
+    #chat-launcher i { font-size: 26px; color: #fff; transition: transform 0.22s; }
+    #chat-launcher.open i { transform: rotate(45deg); }
+    .notif-badge {
+      position: absolute; top: 4px; right: 4px;
+      width: 13px; height: 13px;
+      background: var(--brand-accent);
+      border-radius: 50%;
+      border: 2px solid var(--bg-tertiary);
+    }
+
+    /* ── Chat window ── */
+    #chat-window {
+      position: fixed;
+      bottom: 92px; right: 24px;
+      width: 385px;
+      background: var(--bg-primary);
+      border-radius: 20px;
+      border: 0.5px solid var(--border-light);
+      box-shadow: 0 16px 60px rgba(0,0,0,0.18);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      z-index: 9998;
+      opacity: 0;
+      transform: translateY(16px) scale(0.97);
+      pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+    #chat-window.visible { opacity: 1; transform: translateY(0) scale(1); pointer-events: all; }
+
+    @media (max-width: 440px) {
+      #chat-window { width: calc(100vw - 24px); right: 12px; bottom: 82px; }
+    }
+
+    /* ── Header ── */
+    .chat-header {
+      background: var(--brand-dark);
+      padding: 14px 16px;
+      display: flex; align-items: center; gap: 11px;
+      flex-shrink: 0;
+    }
+    .header-logo {
+      width: 38px; height: 38px;
+      background: var(--brand-mid);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; color: var(--brand-light); flex-shrink: 0;
+    }
+    .header-info { flex: 1; }
+    .header-title { font-size: 14px; font-weight: 600; color: #f0f6ff; }
+    .header-sub { font-size: 11.5px; color: var(--brand-light); margin-top: 2px; display: flex; align-items: center; gap: 5px; }
+    .status-dot { width: 7px; height: 7px; background: var(--brand-accent); border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* ── Quick buttons ── */
+    .quick-btns {
+      display: flex; gap: 7px;
+      padding: 10px 12px;
+      overflow-x: auto;
+      border-bottom: 0.5px solid var(--border-light);
+      background: var(--bg-secondary);
+      flex-shrink: 0;
+      scrollbar-width: none;
+    }
+    .quick-btns::-webkit-scrollbar { display: none; }
+    .qbtn {
+      white-space: nowrap;
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-mid);
+      border-radius: 20px;
+      padding: 5px 11px;
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+      flex-shrink: 0;
+      font-family: inherit;
+    }
+    .qbtn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+
+    /* ── Messages ── */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 12px;
+      display: flex; flex-direction: column; gap: 12px;
+      min-height: 300px; max-height: 390px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-light) transparent;
+    }
+    .msg-row { display: flex; gap: 7px; align-items: flex-start; }
+    .msg-row.user { flex-direction: row-reverse; }
+    .avatar {
+      width: 27px; height: 27px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700; flex-shrink: 0; margin-top: 2px;
+    }
+    .avatar.bot { background: var(--brand-dark); color: var(--brand-light); }
+    .avatar.user { background: #e0e7ff; color: #4338ca; }
+    .bubble {
+      max-width: 80%; padding: 9px 12px;
+      border-radius: 14px; font-size: 13px; line-height: 1.65;
+      color: var(--text-primary);
+    }
+    .bubble.bot {
+      background: var(--bg-secondary);
+      border: 0.5px solid var(--border-light);
+      border-top-left-radius: 4px;
+    }
+    .bubble.user { background: var(--brand-dark); color: #f0f6ff; border-top-right-radius: 4px; }
+    .bubble b { font-weight: 600; }
+    .bubble ul { padding-left: 15px; margin: 5px 0; }
+    .bubble ul li { margin: 3px 0; font-size: 12.5px; }
+    .bubble a { color: var(--brand-mid); }
+    .bubble p { margin: 3px 0; }
+
+    /* ── Typing ── */
+    .typing-indicator { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+    .typing-indicator span {
+      width: 7px; height: 7px; background: var(--text-tertiary);
+      border-radius: 50%; animation: bounce 1.2s infinite;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+
+    /* ── Lead form ── */
+    .lead-form {
+      background: var(--bg-secondary);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 12px;
+      display: flex; flex-direction: column; gap: 8px;
+      max-width: 90%;
+    }
+    .lead-form-title { font-size: 11.5px; font-weight: 600; color: var(--text-secondary); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .form-label { font-size: 10.5px; color: var(--text-secondary); margin-bottom: 3px; font-weight: 500; }
+    .lead-form input, .lead-form textarea {
+      width: 100%; padding: 7px 9px; font-size: 12px;
+      border: 0.5px solid var(--border-mid);
+      border-radius: var(--radius-md);
+      background: var(--bg-primary); color: var(--text-primary);
+      font-family: inherit; outline: none; resize: none;
+    }
+    .lead-form input:focus, .lead-form textarea:focus { border-color: var(--brand-mid); }
+    .lead-form textarea { height: 52px; }
+    .submit-lead {
+      background: var(--brand-dark); color: #f0f6ff;
+      border: none; border-radius: var(--radius-md);
+      padding: 8px; font-size: 12.5px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: opacity 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .submit-lead:hover { opacity: 0.88; }
+    .form-skip { font-size: 11px; color: var(--text-tertiary); cursor: pointer; text-align: center; }
+    .form-skip:hover { color: var(--text-secondary); }
+    .error-msg { color: #dc2626; font-size: 11px; text-align: center; padding: 2px 0; }
+
+    /* ── Input area ── */
+    .input-area {
+      display: flex; gap: 8px;
+      padding: 10px 12px;
+      border-top: 0.5px solid var(--border-light);
+      background: var(--bg-primary);
+      flex-shrink: 0; align-items: flex-end;
+    }
+    #user-input {
+      flex: 1; border: 0.5px solid var(--border-mid);
+      border-radius: 18px; padding: 8px 13px;
+      font-size: 13px; font-family: inherit;
+      background: var(--bg-secondary); color: var(--text-primary);
+      outline: none; resize: none; max-height: 90px; line-height: 1.4; overflow-y: auto;
+    }
+    #user-input:focus { border-color: var(--brand-mid); }
+    #user-input::placeholder { color: var(--text-tertiary); }
+    #send-btn {
+      width: 35px; height: 35px;
+      background: var(--brand-dark); border: none; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: #fff; font-size: 15px; flex-shrink: 0;
+      transition: opacity 0.15s;
+    }
+    #send-btn:hover { opacity: 0.85; }
+    #send-btn:disabled { opacity: 0.35; cursor: default; }
+
+    .contact-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #e0e7ff; color: #4338ca;
+      border-radius: 20px; padding: 3px 9px; font-size: 11px; margin: 3px 2px;
+    }
+
+    /* ── Powered by badge ── */
+    .powered-by {
+      text-align: center; font-size: 10px; color: var(--text-tertiary);
+      padding: 5px 0 8px; border-top: 0.5px solid var(--border-light);
+    }
+    .powered-by a { color: var(--text-tertiary); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<!-- Floating launcher button -->
+<button id="chat-launcher" onclick="toggleChat()" aria-label="Open Technotreon AI chat">
+  <i class="ti ti-message-circle"></i>
+  <span class="notif-badge" id="notif-badge"></span>
+</button>
+
+<!-- Chat window -->
+<div id="chat-window" role="dialog" aria-label="Technotreon AI Assistant">
+
+  <div class="chat-header">
+    <div class="header-logo"><i class="ti ti-circuit-board" aria-hidden="true"></i></div>
+    <div class="header-info">
+      <div class="header-title">Technotreon AI</div>
+      <div class="header-sub"><span class="status-dot"></span> Online &mdash; Innovation Assistant</div>
+    </div>
+    <i class="ti ti-x" style="color:#7EB8FF;font-size:18px;cursor:pointer" onclick="toggleChat()" aria-label="Close chat"></i>
+  </div>
+
+  <div class="quick-btns">
+    <button class="qbtn" onclick="quickSend('Tell me about Technotreon')">About Us</button>
+    <button class="qbtn" onclick="quickSend('I want to patent my idea')">Patent idea</button>
+    <button class="qbtn" onclick="quickSend('Help me build a product')">Build product</button>
+    <button class="qbtn" onclick="quickSend('Startup support services')">Startups</button>
+    <button class="qbtn" onclick="quickSend('Defence technology solutions')">Defence tech</button>
+    <button class="qbtn" onclick="quickSend('Book a consultation')">Consultation</button>
+    <button class="qbtn" onclick="quickSend('Contact information')">Contact</button>
+  </div>
+
+  <div class="messages" id="messages">
+    <div class="msg-row">
+      <div class="avatar bot">T</div>
+      <div class="bubble bot">
+        👋 Welcome to <b>Technotreon AI</b>!<br><br>
+        I can help you with <b>patents, product development, defence tech, and startup support</b>.<br><br>
+        What can I help you with today?
+      </div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <textarea id="user-input" placeholder="Ask about patents, products, defence tech..." rows="1"></textarea>
+    <button id="send-btn" onclick="handleSend()" aria-label="Send">
+      <i class="ti ti-send" aria-hidden="true"></i>
+    </button>
+  </div>
+
+  <div class="powered-by">Powered by <a href="https://technotreon.in" target="_blank">Technotreon AI</a></div>
+</div>
+
+<script>
+  // ── CONFIG: points to your backend ──────────────────────
+  const API_ENDPOINT = '/api/chat';
+  // ────────────────────────────────────────────────────────
+
+  let conversationHistory = [];
+  let isTyping = false;
+  let chatOpen = false;
+
+  const messagesEl = document.getElementById('messages');
+  const inputEl    = document.getElementById('user-input');
+  const sendBtn    = document.getElementById('send-btn');
+  const chatWindow = document.getElementById('chat-window');
+  const launcher   = document.getElementById('chat-launcher');
+
+  function toggleChat() {
+    chatOpen = !chatOpen;
+    chatWindow.classList.toggle('visible', chatOpen);
+    launcher.classList.toggle('open', chatOpen);
+    document.getElementById('notif-badge').style.display = chatOpen ? 'none' : '';
+    if (chatOpen) setTimeout(() => inputEl.focus(), 250);
+  }
+
+  inputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  });
+  inputEl.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 90) + 'px';
+  });
+
+  function quickSend(text) { inputEl.value = text; handleSend(); }
+
+  function addMessage(role, html, isHtml = false) {
+    const row = document.createElement('div');
+    row.className = 'msg-row' + (role === 'user' ? ' user' : '');
+    const av = document.createElement('div');
+    av.className = 'avatar ' + (role === 'user' ? 'user' : 'bot');
+    av.textContent = role === 'user' ? 'U' : 'T';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble ' + (role === 'user' ? 'user' : 'bot');
+    if (isHtml) bubble.innerHTML = html; else bubble.textContent = html;
+    if (role === 'user') { row.appendChild(bubble); row.appendChild(av); }
+    else { row.appendChild(av); row.appendChild(bubble); }
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return bubble;
+  }
+
+  function showTyping() {
+    const row = document.createElement('div');
+    row.className = 'msg-row'; row.id = 'typing-row';
+    const av = document.createElement('div');
+    av.className = 'avatar bot'; av.textContent = 'T';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble bot';
+    bubble.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+    row.appendChild(av); row.appendChild(bubble);
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+  function removeTyping() { document.getElementById('typing-row')?.remove(); }
+
+  function formatResponse(text) {
+    text = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+    const lines = text.split('\n');
+    let html = '', inList = false;
+    for (let line of lines) {
+      line = line.trim();
+      if (!line) { if (inList) { html += '</ul>'; inList = false; } html += '<br>'; continue; }
+      if (line.startsWith('• ') || line.startsWith('- ')) {
+        if (!inList) { html += '<ul>'; inList = true; }
+        html += '<li>' + line.slice(2) + '</li>';
+      } else {
+        if (inList) { html += '</ul>'; inList = false; }
+        html += '<p>' + line + '</p>';
+      }
+    }
+    if (inList) html += '</ul>';
+    return html;
+  }
+
+  async function handleSend() {
+    const text = inputEl.value.trim();
+    if (!text || isTyping) return;
+
+    addMessage('user', text);
+    inputEl.value = ''; inputEl.style.height = 'auto';
+    conversationHistory.push({ role: 'user', parts: [{ text }] });
+
+    isTyping = true; sendBtn.disabled = true;
+    showTyping();
+
+    try {
+      const res = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ history: conversationHistory })
+      });
+
+      const data = await res.json();
+      removeTyping();
+
+      if (!res.ok) throw new Error(data.error || 'Server error');
+
+      const reply = data.reply || "I'm unable to respond right now. Please try again.";
+      conversationHistory.push({ role: 'model', parts: [{ text: reply }] });
+      addMessage('bot', formatResponse(reply), true);
+
+      const needsLead =
+        reply.toLowerCase().includes('contact details') ||
+        reply.toLowerCase().includes('share your') ||
+        text.toLowerCase().includes('consultation') ||
+        text.toLowerCase().includes('contact me') ||
+        text.toLowerCase().includes('interested in');
+      if (needsLead) showLeadForm();
+
+    } catch (err) {
+      removeTyping();
+      addMessage('bot', 'Sorry, I\'m having trouble right now. Please visit <a href="https://technotreon.in/contact-us" target="_blank">technotreon.in/contact-us</a> or contact us during office hours.', true);
+    }
+
+    isTyping = false; sendBtn.disabled = false;
+  }
+
+  function showLeadForm() {
+    if (document.getElementById('lead-form-row')) return;
+    const row = document.createElement('div');
+    row.className = 'msg-row'; row.id = 'lead-form-row';
+    const av = document.createElement('div');
+    av.className = 'avatar bot'; av.textContent = 'T';
+    const form = document.createElement('div');
+    form.className = 'lead-form';
+    form.innerHTML = `
+      <div class="lead-form-title">Connect with a Technotreon expert</div>
+      <div class="form-row">
+        <div><div class="form-label">Full Name *</div><input id="lf-name" placeholder="Your name" /></div>
+        <div><div class="form-label">Email *</div><input id="lf-email" type="email" placeholder="you@example.com" /></div>
+      </div>
+      <div class="form-row">
+        <div><div class="form-label">Phone</div><input id="lf-phone" placeholder="+91 XXXXX XXXXX" /></div>
+        <div><div class="form-label">Organization</div><input id="lf-org" placeholder="Company / University" /></div>
+      </div>
+      <div><div class="form-label">Project Description</div><textarea id="lf-desc" placeholder="Brief description of your requirement..."></textarea></div>
+      <div id="lf-error" class="error-msg" style="display:none"></div>
+      <button class="submit-lead" onclick="submitLead()"><i class="ti ti-send" aria-hidden="true"></i> Submit Enquiry</button>
+      <div class="form-skip" onclick="document.getElementById('lead-form-row').remove()">Skip for now</div>
+    `;
+    row.appendChild(av); row.appendChild(form);
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function submitLead() {
+    const name  = document.getElementById('lf-name').value.trim();
+    const email = document.getElementById('lf-email').value.trim();
+    const phone = document.getElementById('lf-phone').value.trim();
+    const org   = document.getElementById('lf-org').value.trim();
+    const desc  = document.getElementById('lf-desc').value.trim();
+    const errEl = document.getElementById('lf-error');
+
+    if (!name || !email) {
+      errEl.textContent = 'Please enter your name and email.';
+      errEl.style.display = 'block'; return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errEl.textContent = 'Please enter a valid email address.';
+      errEl.style.display = 'block'; return;
+    }
+
+    fetch('/api/lead', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, phone, org, desc, timestamp: new Date().toISOString() })
+    }).catch(() => {});
+
+    document.getElementById('lead-form-row')?.remove();
+    const html = `✅ <b>Thank you, ${name}!</b><br><br>
+      Your enquiry has been received. A Technotreon expert will contact you at <b>${email}</b> within 1 business day.<br><br>
+      <span class="contact-chip"><i class="ti ti-clock" style="font-size:11px"></i> Mon–Sat, 10AM–7PM</span>
+      <span class="contact-chip"><i class="ti ti-globe" style="font-size:11px"></i> technotreon.in</span><br><br>
+      Is there anything else I can help you with?`;
+    addMessage('bot', html, true);
+  }
+</script>
+</body>
+</html>
